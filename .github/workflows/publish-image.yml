@@ -6,8 +6,7 @@ on:
     branches: ['master']
 
 env:
-  # github.repository as <account>/<repo>
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: faucet-backend
   PROJECT_ID: ${{ vars.PROJECT_ID }}
   REPOSITORY: aelf-rd
   REPOSITORY_REGION: us-central1
