@@ -6,8 +6,9 @@ name: Publish Docker Image
 # documentation.
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 env:
   # github.repository as <account>/<repo>
@@ -19,7 +20,6 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
