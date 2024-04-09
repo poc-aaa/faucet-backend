@@ -17,7 +17,6 @@ env:
   REPOSITORY: aelf-rd
   REPOSITORY_REGION: us-central1
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
