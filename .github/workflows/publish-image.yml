@@ -1,14 +1,9 @@
 name: Publish Docker Image
 
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 on:
   workflow_dispatch:
   push:
-    branches: ["master"]
+    branches: ['master']
 
 env:
   # github.repository as <account>/<repo>
@@ -20,6 +15,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: development
     permissions:
       contents: read
       packages: write
