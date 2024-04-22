@@ -9,8 +9,10 @@ namespace DeFiPulse.Project
 
         public int SendCoinValue { get; set; }
 
-        public bool IsSendSuccess { get; set; }
-        
+        public bool IsSentToken { get; set; }
+
+        public bool IsSentSeed { get; set; }
+
         public void SetId(string id)
         {
             Id = id.ToLower();

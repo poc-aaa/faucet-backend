@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Volo.Abp;
 using Volo.Abp.AspNetCore.Mvc;
+using Volo.Abp.AspNetCore.Mvc.AntiForgery;
 using Volo.Abp.Autofac;
 using Volo.Abp.AutoMapper;
 using Volo.Abp.Modularity;
@@ -40,6 +41,11 @@ namespace DeFiPulse.Web
 
                 builder.AddLog4Net();
                 builder.SetMinimumLevel(LogLevel.Debug);
+            });
+            
+            Configure<AbpAntiForgeryOptions>(options =>
+            {
+                options.AutoValidate = false;
             });
         }
         

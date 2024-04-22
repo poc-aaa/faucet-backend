@@ -1,11 +1,13 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using Volo.Abp.Application.Services;
 using Volo.Abp.DependencyInjection;
 
 namespace DeFiPulse.Project;
 
 public interface ICoinSendContractService : ISingletonDependency
 {
-    Task<MessageResult> CoinIsAdequate(ChainType chainType);
-    Task<MessageResult> SendCoin(string walletAddress, ChainType chainType);
+    Task<MessageResult> CheckBalanceAsync(ChainType chainType);
+    Task<MessageResult> SendTokensAsync(string walletAddress, ChainType chainType);
+    Task<MessageResult> SendSeedAsync(string walletAddress, string tokenSymbol);
+    Task<List<string>> GetSeedList();
 }
