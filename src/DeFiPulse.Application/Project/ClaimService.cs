@@ -41,7 +41,7 @@ public class ClaimService : DeFiPulseAppService, IClaimService
             walletAddress = walletAddress.Split('_')[1];
         }
 
-        var gotTokenBefore = await _sendTokenInfoRepository.GetAsync(walletAddress);
+        var gotTokenBefore = await _sendTokenInfoRepository.GetAsync(walletAddress.ToLower());
         if (gotTokenBefore is { IsSentToken: true })
         {
             messageResult.IsSuccess = false;
@@ -66,20 +66,25 @@ public class ClaimService : DeFiPulseAppService, IClaimService
 
         try
         {
+            SendTokenInfo result;
             var sendTokenInfo = await _sendTokenInfoRepository.GetAsync(walletAddress.ToLower());
             if (sendTokenInfo == null)
             {
+                // Never get tokens before.
                 sendTokenInfo = new SendTokenInfo
                 {
                     WalletAddress = walletAddress,
-                    SendCoinValue = 2000
                 };
                 sendTokenInfo.SetId(walletAddress);
+                result = await _sendTokenInfoRepository.InsertAsync(sendTokenInfo);
+            }
+            else
+            {
+                // Get seed token before.
+                sendTokenInfo.IsSentToken = true;
+                result = await _sendTokenInfoRepository.UpdateAsync(sendTokenInfo);
             }
 
-            sendTokenInfo.IsSentToken = true;
-
-            var result = await _sendTokenInfoRepository.InsertAsync(sendTokenInfo);
             if (result == null)
             {
                 messageResult.IsSuccess = false;
@@ -112,7 +117,7 @@ public class ClaimService : DeFiPulseAppService, IClaimService
             return messageResult;
         }
 
-        var gotTokenBefore = await _sendTokenInfoRepository.GetAsync(walletAddress);
+        var gotTokenBefore = await _sendTokenInfoRepository.GetAsync(walletAddress.ToLower());
         if (gotTokenBefore is { IsSentSeed: true })
         {
             messageResult.IsSuccess = false;
@@ -129,20 +134,26 @@ public class ClaimService : DeFiPulseAppService, IClaimService
 
         try
         {
+            SendTokenInfo result;
             var sendTokenInfo = await _sendTokenInfoRepository.GetAsync(walletAddress.ToLower());
             if (sendTokenInfo == null)
             {
+                // Never get tokens before.
                 sendTokenInfo = new SendTokenInfo
                 {
                     WalletAddress = walletAddress,
-                    SendCoinValue = 2000
+                    IsSentSeed = true
                 };
                 sendTokenInfo.SetId(walletAddress);
+                result = await _sendTokenInfoRepository.InsertAsync(sendTokenInfo);
+            }
+            else
+            {
+                // Get FT tokens before.
+                sendTokenInfo.IsSentSeed = true;
+                result = await _sendTokenInfoRepository.UpdateAsync(sendTokenInfo);
             }
 
-            sendTokenInfo.IsSentSeed = true;
-
-            var result = await _sendTokenInfoRepository.InsertAsync(sendTokenInfo);
             if (result == null)
             {
                 messageResult.IsSuccess = false;
