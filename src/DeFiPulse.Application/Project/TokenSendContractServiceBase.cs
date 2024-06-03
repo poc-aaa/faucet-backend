@@ -8,32 +8,26 @@ using AElf.Client.Dto;
 using AElf.Client.MultiToken;
 using Google.Protobuf;
 using Address = AElf.Types.Address;
-using Microsoft.Extensions.Options;
 using RestSharp;
 
 namespace DeFiPulse.Project;
 
-public class CoinSendContractService : ICoinSendContractService
+public abstract class TokenSendContractServiceBase : ITokenSendContractService
 {
-    private string BaseUrlForMainchain;
-    private string BaseUrlForSidechain;
-    private string PrivateKey;
-    private string _address;
-    private AElfClient ClientForMainchain { get; }
-    private AElfClient ClientForSidechain { get; }
-    private readonly ApiConfigOptions _apiConfig;
+    private AElfClient ClientForMainChain { get; }
+    private AElfClient ClientForSideChain { get; }
+    
+    private readonly string _privateKey;
+    private readonly string _address;
+    private readonly int _sendELFCount;
 
-    public CoinSendContractService(IOptionsSnapshot<ApiConfigOptions> apiOptions)
+    protected TokenSendContractServiceBase(string baseUrlForMainChain, string baseUrlForSideChain, string privateKey, int sendElfCount)
     {
-        _apiConfig = apiOptions.Value;
-        BaseUrlForMainchain = string.IsNullOrEmpty(_apiConfig.BaseUrlForMainchain)
-            ? _apiConfig.BaseUrl
-            : _apiConfig.BaseUrlForMainchain;
-        BaseUrlForSidechain = _apiConfig.BaseUrlForSidechain;
-        PrivateKey = _apiConfig.PrivateKey;
-        ClientForMainchain = new AElfClient(BaseUrlForMainchain);
-        ClientForSidechain = new AElfClient(BaseUrlForSidechain);
-        _address = ClientForMainchain.GetAddressFromPrivateKey(PrivateKey);
+        ClientForMainChain = new AElfClient(baseUrlForMainChain);
+        ClientForSideChain = new AElfClient(baseUrlForSideChain);
+        _privateKey = privateKey;
+        _address = ClientForMainChain.GetAddressFromPrivateKey(_privateKey);
+        _sendELFCount = sendElfCount;
     }
 
     public async Task<MessageResult> CheckBalanceAsync(ChainType chainType)
@@ -42,10 +36,10 @@ public class CoinSendContractService : ICoinSendContractService
         try
         {
             // Now we check both MainChain and SideChain.
-            messageResult = await CheckFaucetAccountBalanceAsync(ClientForMainchain);
+            messageResult = await CheckFaucetAccountBalanceAsync(ClientForMainChain);
             if (messageResult.IsSuccess)
             {
-                messageResult = await CheckFaucetAccountBalanceAsync(ClientForSidechain);
+                messageResult = await CheckFaucetAccountBalanceAsync(ClientForSideChain);
             }
         }
         catch (Exception ex)
@@ -73,7 +67,7 @@ public class CoinSendContractService : ICoinSendContractService
         var transactionGetBalance =
             await client.GenerateTransactionAsync(_address, tokenContractAddress.ToBase58(), "GetBalance",
                 getBalanceInput);
-        var txWithSignGetBalance = client.SignTransaction(PrivateKey, transactionGetBalance);
+        var txWithSignGetBalance = client.SignTransaction(_privateKey, transactionGetBalance);
         var transactionGetBalanceResult = await client.ExecuteTransactionAsync(new ExecuteTransactionDto
         {
             RawTransaction = txWithSignGetBalance.ToByteArray().ToHex()
@@ -101,8 +95,8 @@ public class CoinSendContractService : ICoinSendContractService
             //     : ClientForSidechain, walletAddress);
 
             // Now we send tokens to user on both MainChain and SideChain
-            messageResult = await SendTokensToUserAsync(ClientForSidechain, walletAddress);
-            await SendTokensToUserAsync(ClientForMainchain, walletAddress);
+            messageResult = await SendTokensToUserAsync(ClientForSideChain, walletAddress);
+            await SendTokensToUserAsync(ClientForMainChain, walletAddress);
         }
         catch (Exception ex)
         {
@@ -119,7 +113,7 @@ public class CoinSendContractService : ICoinSendContractService
         var messageResult = new MessageResult();
         try
         {
-            messageResult = await SendSeedTokenToUserAsync(ClientForMainchain, walletAddress, tokenSymbol);
+            messageResult = await SendSeedTokenToUserAsync(ClientForMainChain, walletAddress, tokenSymbol);
         }
         catch (Exception ex)
         {
@@ -131,7 +125,7 @@ public class CoinSendContractService : ICoinSendContractService
         return messageResult;
     }
 
-    public async Task<List<string>> GetSeedList()
+    public async Task<List<string>> GetBalanceSymbols()
     {
         var options = new RestClientOptions("https://explorer-test.aelf.io/api/viewer");
         var client = new RestClient(options);
@@ -152,18 +146,18 @@ public class CoinSendContractService : ICoinSendContractService
         {
             To = new AElf.Client.Proto.Address { Value = Address.FromBase58(walletAddress).Value },
             Symbol = "ELF",
-            Amount = _apiConfig.SendCount * 100000000L
+            Amount = _sendELFCount * 100000000L
         };
 
         var transaction =
             await client.GenerateTransactionAsync(_address, toAddress.ToBase58(), "Transfer", param);
-        var txWithSign = client.SignTransaction(PrivateKey, transaction);
+        var txWithSign = client.SignTransaction(_privateKey, transaction);
 
         var result = await client.SendTransactionAsync(new SendTransactionInput
         {
             RawTransaction = txWithSign.ToByteArray().ToHex()
         });
-        messageResult.Message = result.TransactionId;
+        messageResult.Message = result?.TransactionId;
         return messageResult;
     }
 
@@ -185,13 +179,13 @@ public class CoinSendContractService : ICoinSendContractService
 
         var transaction =
             await client.GenerateTransactionAsync(_address, toAddress.ToBase58(), "Transfer", param);
-        var txWithSign = client.SignTransaction(PrivateKey, transaction);
+        var txWithSign = client.SignTransaction(_privateKey, transaction);
 
         var result = await client.SendTransactionAsync(new SendTransactionInput
         {
             RawTransaction = txWithSign.ToByteArray().ToHex()
         });
-        messageResult.Message = result.TransactionId;
+        messageResult.Message = result?.TransactionId;
         return messageResult;
     }
 }

@@ -1,4 +1,5 @@
 ﻿
+using DeFiPulse.Project;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp.AutoMapper;
 using Volo.Abp.Localization;
@@ -26,7 +27,11 @@ namespace DeFiPulse
             {
                 options.AddMaps<DeFiPulseApplicationModule>();
             });
-            
+            context.Services.AddSingleton<OtherTokenSendContractService>();
+            context.Services.AddSingleton<NftSeedTokenSendContractService>();
+
+            context.Services.AddSingleton<ITokenSendContractService>(sp => sp.GetRequiredService<OtherTokenSendContractService>());
+            context.Services.AddSingleton<ITokenSendContractService>(sp => sp.GetRequiredService<NftSeedTokenSendContractService>());
         }
     }
 }
