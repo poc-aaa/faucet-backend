@@ -7,4 +7,5 @@ public class ApiConfigOptions
     public string BaseUrlForSidechain { get; set; }
     public string PrivateKey { get; set; }
     public int SendCount { get; set; }
+    public string NftSeedPrivateKey { get; set; }
 }
