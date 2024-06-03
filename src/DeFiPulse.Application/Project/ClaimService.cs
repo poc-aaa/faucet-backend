@@ -8,13 +8,16 @@ namespace DeFiPulse.Project;
 public class ClaimService : DeFiPulseAppService, IClaimService
 {
     private readonly ISendTokenInfoRepository _sendTokenInfoRepository;
-    private readonly ICoinSendContractService _coinSendContractService;
+    private readonly ITokenSendContractService _otherTokenSendContractService;
+    private readonly ITokenSendContractService _nftSeedTokenSendContractService;
 
     public ClaimService(ISendTokenInfoRepository sendTokenInfoRepository,
-        ICoinSendContractService contractService)
+                        OtherTokenSendContractService otherTokenSendContractService,
+                        NftSeedTokenSendContractService nftSeedTokenSendContractService)
     {
         _sendTokenInfoRepository = sendTokenInfoRepository;
-        _coinSendContractService = contractService;
+        _otherTokenSendContractService = otherTokenSendContractService;
+        _nftSeedTokenSendContractService = nftSeedTokenSendContractService;
     }
 
     [Route("api/claim")]
@@ -50,13 +53,13 @@ public class ClaimService : DeFiPulseAppService, IClaimService
             return messageResult;
         }
 
-        var checkBalanceMessageResult = await _coinSendContractService.CheckBalanceAsync(chainType);
+        var checkBalanceMessageResult = await _otherTokenSendContractService.CheckBalanceAsync(chainType);
         if (!checkBalanceMessageResult.IsSuccess)
         {
             return checkBalanceMessageResult;
         }
 
-        var sendTokenMessageResult = await _coinSendContractService.SendTokensAsync(walletAddress, chainType);
+        var sendTokenMessageResult = await _otherTokenSendContractService.SendTokensAsync(walletAddress, chainType);
         if (!sendTokenMessageResult.IsSuccess)
         {
             return sendTokenMessageResult;
@@ -103,12 +106,26 @@ public class ClaimService : DeFiPulseAppService, IClaimService
     }
 
     [HttpPost("api/claim-seed")]
+    public async Task<MessageResult> ClaimNFTSeedAsync(string walletAddress)
+    {
+        return await ClaimSeedAsync(walletAddress, _otherTokenSendContractService, tokenInfo => tokenInfo.IsSentSeed, (tokenInfo, isSent) => tokenInfo.IsSentSeed = isSent);
+    }
+
+    [HttpPost("api/claim-nft-seed")]
     public async Task<MessageResult> ClaimSeedAsync(string walletAddress)
+    {
+        return await ClaimSeedAsync(walletAddress, _nftSeedTokenSendContractService, tokenInfo => tokenInfo.IsSentNftSeed, (tokenInfo, isSent) => tokenInfo.IsSentNftSeed = isSent);
+    }
+    
+    private async Task<MessageResult> ClaimSeedAsync(string walletAddress,
+                                                     ITokenSendContractService tokenSendContractService,
+                                                     Func<SendTokenInfo, bool> isSentCheck,
+                                                     Action<SendTokenInfo, bool> setIsSent)
     {
         var messageResult = new MessageResult();
 
-        var seedList = await _coinSendContractService.GetSeedList();
-        var seedTokenSymbol = seedList.FirstOrDefault(s => s.Contains("SEED"));
+        var balanceSymbols = await tokenSendContractService.GetBalanceSymbols();
+        var seedTokenSymbol = balanceSymbols.FirstOrDefault(s => s.Contains("SEED"));
         if (seedTokenSymbol == null)
         {
             messageResult.IsSuccess = false;
@@ -118,15 +135,15 @@ public class ClaimService : DeFiPulseAppService, IClaimService
         }
 
         var gotTokenBefore = await _sendTokenInfoRepository.GetAsync(walletAddress.ToLower());
-        if (gotTokenBefore is { IsSentSeed: true })
+        if (gotTokenBefore != null && isSentCheck(gotTokenBefore))
         {
             messageResult.IsSuccess = false;
-            messageResult.Message = $"You have received the seed and cannot receive it again";
+            messageResult.Message = "You have received the seed and cannot receive it again.";
             messageResult.Code = Convert.ToInt32(CodeStatus.HadReceived);
             return messageResult;
         }
 
-        var sendTokenMessageResult = await _coinSendContractService.SendSeedAsync(walletAddress, seedTokenSymbol);
+        var sendTokenMessageResult = await tokenSendContractService.SendSeedAsync(walletAddress, seedTokenSymbol);
         if (!sendTokenMessageResult.IsSuccess)
         {
             return sendTokenMessageResult;
@@ -138,26 +155,24 @@ public class ClaimService : DeFiPulseAppService, IClaimService
             var sendTokenInfo = await _sendTokenInfoRepository.GetAsync(walletAddress.ToLower());
             if (sendTokenInfo == null)
             {
-                // Never get tokens before.
                 sendTokenInfo = new SendTokenInfo
                 {
-                    WalletAddress = walletAddress,
-                    IsSentSeed = true
+                    WalletAddress = walletAddress
                 };
+                setIsSent(sendTokenInfo, true);
                 sendTokenInfo.SetId(walletAddress);
                 result = await _sendTokenInfoRepository.InsertAsync(sendTokenInfo);
             }
             else
             {
-                // Get FT tokens before.
-                sendTokenInfo.IsSentSeed = true;
+                setIsSent(sendTokenInfo, true);
                 result = await _sendTokenInfoRepository.UpdateAsync(sendTokenInfo);
             }
 
             if (result == null)
             {
                 messageResult.IsSuccess = false;
-                messageResult.Message = $"System error: Failed to insert send token info.";
+                messageResult.Message = "System error: Failed to insert send token info.";
                 messageResult.Code = Convert.ToInt32(CodeStatus.SystemError);
             }
         }

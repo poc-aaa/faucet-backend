@@ -12,6 +12,7 @@ namespace DeFiPulse.Project
         public bool IsSentToken { get; set; }
 
         public bool IsSentSeed { get; set; }
+        public bool IsSentNftSeed { get; set; }
 
         public void SetId(string id)
         {
